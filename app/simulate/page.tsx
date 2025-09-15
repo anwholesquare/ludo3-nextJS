@@ -18,11 +18,17 @@ export default function SimulatePage() {
       
       {/* Instructions overlay */}
       <div className="absolute top-4 right-4 z-10 text-right">
-        <h1 className="text-2xl font-bold text-white mb-2 font-space-grotesk drop-shadow-lg">Ludo Board</h1>
-        <p className="text-white mb-2 font-inter drop-shadow-lg">
+        <h1 className="text-2xl font-bold text-white mb-2 font-space-grotesk drop-shadow-lg">🎲 A Ludo Game</h1>
+        <p className="text-white mb-2 font-inter drop-shadow-lg" style={{ fontSize: "10px" }}>
           <kbd className="px-2 py-1 bg-black bg-opacity-50 rounded text-white font-space-grotesk">SPACE</kbd> Camera Orbit
         </p>
-        <p className="text-white font-inter drop-shadow-lg">
+        <p className="text-white mb-2 font-inter drop-shadow-lg" style={{ fontSize: "10px" }}>
+          <kbd className="px-2 py-1 bg-black bg-opacity-50 rounded text-white font-space-grotesk">ENTER</kbd> Random Dice
+        </p>
+        <p className="text-white mb-2 font-inter drop-shadow-lg" style={{ fontSize: "10px" }}>
+          <kbd className="px-2 py-1 bg-black bg-opacity-50 rounded text-white font-space-grotesk">1-6</kbd> Specific Value
+        </p>
+        <p className="text-white font-inter drop-shadow-lg" style={{ fontSize: "10px" }}>
           Click Board: Change Theme
         </p>
       </div>

@@ -330,6 +330,178 @@ const homes = [
         </div>
       </section>
 
+      {/* Coordinate System Documentation */}
+      <section className="container mx-auto px-4 py-16 bg-slate-50 dark:bg-slate-900/50">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-bold font-space-grotesk mb-4">
+            Ludo Board Coordinate System
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto font-inter">
+            Understanding the 3D coordinate system used for positioning board elements
+          </p>
+        </div>
+
+        <div className="max-w-6xl mx-auto space-y-8">
+          {/* Coordinate Overview */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl font-space-grotesk flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Coordinate System Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">
+                The Ludo board uses a standard Three.js coordinate system with the origin (0,0,0) at the board center:
+              </p>
+              <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-lg font-mono text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div><strong>X-Axis:</strong> Left (-) to Right (+)</div>
+                  <div><strong>Y-Axis:</strong> Down (-) to Up (+)</div>
+                  <div><strong>Z-Axis:</strong> Forward (+) to Back (-)</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Home Areas */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl font-space-grotesk">Home Areas Coordinates</CardTitle>
+              <CardDescription>
+                Each player's home area is positioned in a corner quadrant, 4.5 units from center
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                  <h4 className="font-semibold text-yellow-700 dark:text-yellow-300 mb-2">Yellow Player</h4>
+                  <code className="text-sm">x: -4.5, z: -4.5</code>
+                  <p className="text-xs text-muted-foreground mt-1">Top-left quadrant</p>
+                </div>
+                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                  <h4 className="font-semibold text-green-700 dark:text-green-300 mb-2">Green Player</h4>
+                  <code className="text-sm">x: -4.5, z: 4.5</code>
+                  <p className="text-xs text-muted-foreground mt-1">Bottom-left quadrant</p>
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <h4 className="font-semibold text-blue-700 dark:text-blue-300 mb-2">Blue Player</h4>
+                  <code className="text-sm">x: 4.5, z: 4.5</code>
+                  <p className="text-xs text-muted-foreground mt-1">Bottom-right quadrant</p>
+                </div>
+                <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
+                  <h4 className="font-semibold text-red-700 dark:text-red-300 mb-2">Red Player</h4>
+                  <code className="text-sm">x: 4.5, z: -4.5</code>
+                  <p className="text-xs text-muted-foreground mt-1">Top-right quadrant</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Playing Track */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl font-space-grotesk">Playing Track Coordinates</CardTitle>
+              <CardDescription>
+                The main track forms a cross pattern with 52 squares total
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
+                  <h4 className="font-semibold mb-2">Horizontal Track</h4>
+                  <code className="text-sm">x: -7 to 7, z: -1 to 1</code>
+                  <p className="text-xs text-muted-foreground mt-1">15 × 3 = 45 squares</p>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
+                  <h4 className="font-semibold mb-2">Vertical Track</h4>
+                  <code className="text-sm">x: -1 to 1, z: -7 to 7</code>
+                  <p className="text-xs text-muted-foreground mt-1">3 × 15 = 45 squares</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Safe Zones */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl font-space-grotesk">Safe Zone Coordinates</CardTitle>
+              <CardDescription>
+                Special colored squares where pieces cannot be captured
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <h4 className="font-semibold">Player Entry Zones</h4>
+                  <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded text-sm font-mono space-y-1">
+                    <div>Yellow: (-6, -1)</div>
+                    <div>Green: (-1, 6)</div>
+                    <div>Blue: (6, 1)</div>
+                    <div>Red: (1, -6)</div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h4 className="font-semibold">Corner Safe Zones</h4>
+                  <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded text-sm font-mono space-y-1">
+                    <div>(1, 5), (-1, -5)</div>
+                    <div>(-5, 1), (5, -1)</div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Height Levels */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl font-space-grotesk">Height Levels (Y-Coordinates)</CardTitle>
+              <CardDescription>
+                Different board elements positioned at specific heights for proper layering
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-mono">
+                  <div className="space-y-1">
+                    <div><strong>y: 0.16</strong> - Home areas & track base</div>
+                    <div><strong>y: 0.17</strong> - Home inner areas</div>
+                    <div><strong>y: 0.175</strong> - Player slots base</div>
+                    <div><strong>y: 0.177</strong> - Player slots inner</div>
+                  </div>
+                  <div className="space-y-1">
+                    <div><strong>y: 0.18</strong> - Center area base</div>
+                    <div><strong>y: 0.19</strong> - Center triangles & labels</div>
+                    <div><strong>y: 0.2</strong> - Game pieces</div>
+                    <div><strong>y: 0.6</strong> - Home symbols</div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Example Positions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl font-space-grotesk">Example Game Piece Positions</CardTitle>
+              <CardDescription>
+                Sample coordinates for pieces in different game states
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded border border-yellow-200 dark:border-yellow-800">
+                <h4 className="font-semibold text-yellow-700 dark:text-yellow-300 mb-3">Yellow Player Examples</h4>
+                <div className="text-sm font-mono space-y-1">
+                  <div><strong>Home slots:</strong> (-5.6, -5.6), (-3.4, -5.6)</div>
+                  <div><strong>Main track:</strong> (-7, -1) - starting position</div>
+                  <div><strong>Home run:</strong> (-4, 0) - path to center</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="border-t bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-6 sm:py-8">
@@ -337,27 +509,27 @@ const homes = [
             <a
               className="flex items-center gap-2 hover:text-foreground transition-colors"
               href="https://nextjs.org/docs"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+          target="_blank"
+          rel="noopener noreferrer"
+        >
               <ExternalLink className="h-4 w-4" />
               Next.js Docs
-            </a>
-            <a
+        </a>
+        <a
               className="flex items-center gap-2 hover:text-foreground transition-colors"
               href="https://ui.shadcn.com/docs"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+          target="_blank"
+          rel="noopener noreferrer"
+        >
               <ExternalLink className="h-4 w-4" />
               shadcn/ui Docs
-            </a>
-            <a
+        </a>
+        <a
               className="flex items-center gap-2 hover:text-foreground transition-colors"
               href="https://docs.pmnd.rs/react-three-fiber"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+          target="_blank"
+          rel="noopener noreferrer"
+        >
               <ExternalLink className="h-4 w-4" />
               React Three Fiber
             </a>

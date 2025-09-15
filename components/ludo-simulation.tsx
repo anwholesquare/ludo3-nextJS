@@ -1,15 +1,28 @@
 'use client'
 
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Text } from '@react-three/drei'
-import { useRef, useState, useEffect, useMemo } from 'react'
+import { OrbitControls, Text, useGLTF } from '@react-three/drei'
+import { useRef, useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
 // Simple working Ludo board with color themes
-function LudoBoard() {
+const LudoBoard = forwardRef<{ 
+  throwDice: () => void, 
+  throwDiceWithValue: (value?: number) => void,
+  isDiceAnimating: boolean 
+}, {}>(function LudoBoard(props, ref) {
   const meshRef = useRef<THREE.Mesh>(null)
   const [currentTheme, setCurrentTheme] = useState(0)
+  const [diceValue, setDiceValue] = useState(1)
+  const [isDiceAnimating, setIsDiceAnimating] = useState(false)
+  const [isDiceVisible, setIsDiceVisible] = useState(false) // Start hidden, show during animation
+  const [dicePosition, setDicePosition] = useState<[number, number, number]>([0, 1.2, 0]) // Center position
+  const [diceRotation, setDiceRotation] = useState<[number, number, number]>([0, 0, 0])
+  const [diceVelocity, setDiceVelocity] = useState<[number, number, number]>([0, 0, 0])
+  const [diceAngularVelocity, setDiceAngularVelocity] = useState<[number, number, number]>([0, 0, 0])
+  const [targetValue, setTargetValue] = useState(1)
+  const [isDiceActive, setIsDiceActive] = useState(false) // True from throw until vanish
 
   // Color themes for the board
   const colorThemes = [
@@ -54,6 +67,96 @@ function LudoBoard() {
     setCurrentTheme((prev) => (prev + 1) % colorThemes.length)
   }
 
+  // Get the exact rotation to show a specific dice value
+  const getDiceRotationForValue = (value: number): [number, number, number] => {
+    switch (value) {
+      case 1: return [Math.PI/2, 0, 0] // This rotation shows face 1 (confirmed by key 4)
+      case 2: return [Math.PI,0,0] // Try different rotation for face 2
+      case 3: return [3* Math.PI/ 2, Math.PI/2, 0] // Try different rotation 
+      case 4: return [3* Math.PI/ 2, -Math.PI/2, 0] // Opposite of face 1
+      case 5: return [0, 0, 0] // This was showing for keys 1,5,6 - assign to 5
+      case 6: return [-Math.PI/2, 0, 0] // This rotation shows face 6 (confirmed by key 3)
+      default: return [0, 0, 0]
+    }
+  }
+
+
+  // Realistic dice throwing with physics animation
+  const throwDiceWithValue = (specificValue?: number) => {
+    if (isDiceActive) {
+      // Prevent multiple throws - blocked message is handled in main component
+      return
+    }
+    
+    setIsDiceAnimating(true)
+    setIsDiceVisible(true)
+    setIsDiceActive(true) // Mark dice as active for entire lifecycle
+    
+    // Use specific value or generate random
+    const newValue = specificValue || Math.floor(Math.random() * 6) + 1
+    setTargetValue(newValue)
+    setDiceValue(newValue)
+    
+    // Start from above center, thrown with realistic physics
+    const centerX = 0
+    const centerZ = 0
+    
+    // Start directly above center and fall straight down to center
+    const initialPosition: [number, number, number] = [
+      centerX, // No horizontal offset - start directly above center
+      8,       // Start 8 units high
+      centerZ  // No depth offset - start directly above center
+    ]
+    const initialVelocity: [number, number, number] = [
+      0,  // No horizontal velocity - fall straight down
+      1,  // Small upward velocity for natural arc
+      0   // No depth velocity - fall straight down
+    ]
+    const initialAngularVelocity: [number, number, number] = [
+      (Math.random() - 0.5) * 12, // Reduced initial tumbling (was 20)
+      (Math.random() - 0.5) * 12,
+      (Math.random() - 0.5) * 12
+    ]
+    const initialRotation: [number, number, number] = [
+      Math.random() * Math.PI * 2,
+      Math.random() * Math.PI * 2,
+      Math.random() * Math.PI * 2
+    ]
+    
+    // Set initial physics state
+    setDicePosition(initialPosition)
+    setDiceRotation(initialRotation)
+    setDiceVelocity(initialVelocity)
+    setDiceAngularVelocity(initialAngularVelocity)
+    
+    // Simple: physics stops, show exact value immediately
+    setTimeout(() => {
+      setIsDiceAnimating(false)
+      setDicePosition([centerX, 1.2, centerZ])
+      setDiceRotation(getDiceRotationForValue(newValue))
+      
+      console.log(`Dice showing exact value: ${newValue}`)
+      
+      // Vanish after 5 seconds and mark as inactive
+      setTimeout(() => {
+        setIsDiceVisible(false)
+        setIsDiceActive(false) // Mark dice as inactive - ready for next throw
+      }, 5000)
+    }, 2000) // 2 seconds for physics
+
+    
+  }
+
+  // Legacy function for random throws
+  const throwDice = () => throwDiceWithValue()
+
+  // Expose dice functions to parent
+  useImperativeHandle(ref, () => ({
+    throwDice,
+    throwDiceWithValue,
+    isDiceAnimating: isDiceActive // Use isDiceActive instead of isDiceAnimating
+  }))
+
   return (
     <group>
       {/* Board base */}
@@ -64,9 +167,19 @@ function LudoBoard() {
 
       {/* Board components */}
       <BoardComponents colors={currentColors} />
+      
+      {/* 3D Dice with Physics - only show when visible */}
+      {isDiceVisible && (
+        <DiceComponent 
+          position={dicePosition}
+          rotation={diceRotation}
+          value={diceValue}
+          isAnimating={isDiceAnimating}
+        />
+      )}
     </group>
   )
-}
+})
 
 // All board components
 function BoardComponents({ colors }: { colors: any }) {
@@ -396,6 +509,137 @@ function CenterArea({ colors }: { colors: any }) {
   )
 }
 
+// 3D Dice with GLB model and Three.js rotation
+function DiceComponent({ position, rotation, value, isAnimating }: { 
+  position: [number, number, number], 
+  rotation: [number, number, number], 
+  value: number,
+  isAnimating: boolean
+}) {
+  const diceRef = useRef<THREE.Group>(null)
+  const [currentPosition, setCurrentPosition] = useState(position)
+  const [currentVelocity, setCurrentVelocity] = useState<[number, number, number]>([0, 0, 0])
+  const [currentAngularVelocity, setCurrentAngularVelocity] = useState<[number, number, number]>([0, 0, 0])
+  
+  // Load the GLB dice model
+  const { scene: diceModel } = useGLTF('/dice_highres_red.glb')
+  
+  // Clone the model to avoid sharing between instances
+  const clonedModel = useMemo(() => {
+    const cloned = diceModel.clone()
+    cloned.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.castShadow = true
+        child.receiveShadow = true
+      }
+    })
+    return cloned
+  }, [diceModel])
+
+  // Initialize physics when animation starts
+  useEffect(() => {
+    if (isAnimating) {
+      setCurrentPosition(position)
+      // Initialize velocities from parent component's initial values
+      setCurrentVelocity([0, 1, 0]) // Fall straight down with small upward start
+      setCurrentAngularVelocity([
+        (Math.random() - 0.5) * 12,
+        (Math.random() - 0.5) * 12,
+        (Math.random() - 0.5) * 12
+      ])
+    }
+  }, [isAnimating, position])
+
+  // Realistic physics simulation with smooth animation
+  useFrame((state, delta) => {
+    if (isAnimating && diceRef.current) {
+      const gravity = -9.8 * 3 // Strong gravity for realistic fall
+      const friction = 0.98 // Air resistance
+      const bounceDamping = 0.4 // More energy loss on bounce (was 0.65)
+      const angularDamping = 0.92 // Much stronger angular damping (was 0.985)
+      const groundLevel = 1.2 // Board surface level (slightly above center)
+      const groundAngularDamping = 0.85 // Extra damping when touching ground
+
+      // Update velocity with gravity
+      setCurrentVelocity(prev => [
+        prev[0] * friction,
+        prev[1] + gravity * delta,
+        prev[2] * friction
+      ])
+
+      // Update angular velocity with damping (stronger when on ground)
+      const isOnGround = currentPosition[1] <= groundLevel + 0.1
+      const currentAngularDampingRate = isOnGround ? groundAngularDamping : angularDamping
+      
+      setCurrentAngularVelocity(prev => [
+        prev[0] * currentAngularDampingRate,
+        prev[1] * currentAngularDampingRate, 
+        prev[2] * currentAngularDampingRate
+      ])
+
+      // Update position
+      setCurrentPosition(prev => {
+        const newPos: [number, number, number] = [
+          prev[0] + currentVelocity[0] * delta,
+          prev[1] + currentVelocity[1] * delta,
+          prev[2] + currentVelocity[2] * delta
+        ]
+        
+        // Ground collision with realistic bouncing
+        if (newPos[1] <= groundLevel && currentVelocity[1] < 0) {
+          newPos[1] = groundLevel
+          setCurrentVelocity(prevVel => [
+            prevVel[0] * bounceDamping,
+            -prevVel[1] * bounceDamping,
+            prevVel[2] * bounceDamping
+          ])
+          
+          // Add much smaller random spin on bounce for realism
+          setCurrentAngularVelocity(prevAngular => [
+            prevAngular[0] + (Math.random() - 0.5) * 1.5, // Reduced from 5 to 1.5
+            prevAngular[1] + (Math.random() - 0.5) * 1.5,
+            prevAngular[2] + (Math.random() - 0.5) * 1.5
+          ])
+        }
+        
+        return newPos
+      })
+
+      // Apply position
+      diceRef.current.position.set(...currentPosition)
+      
+      // Apply rotation using quaternions for smooth tumbling
+      const quaternion = new THREE.Quaternion()
+      quaternion.setFromEuler(new THREE.Euler(
+        currentAngularVelocity[0] * delta,
+        currentAngularVelocity[1] * delta,
+        currentAngularVelocity[2] * delta
+      ))
+      diceRef.current.quaternion.multiplyQuaternions(quaternion, diceRef.current.quaternion)
+      
+    } else {
+      // When not animating, directly use the provided position and rotation
+      if (diceRef.current) {
+        diceRef.current.position.set(...position)
+        diceRef.current.rotation.set(...rotation)
+      }
+    }
+  })
+
+  return (
+    <group ref={diceRef} position={position} rotation={rotation}>
+      {/* GLB Dice Model */}
+      <primitive 
+        object={clonedModel} 
+        scale={[0.5, 0.5, 0.5]} // Scale down the model to fit our scene
+      />
+    </group>
+  )
+}
+
+// Preload the dice model
+useGLTF.preload('/dice_highres_red.glb')
+
 // Game pieces positioned in homes and on track
 function GamePieces({ colors }: { colors: any }) {
   const pieces = [
@@ -485,6 +729,77 @@ function GamePieces({ colors }: { colors: any }) {
 
 
 
+// Camera-facing blocked message notification
+function BlockedMessageNotification() {
+  const meshRef = useRef<THREE.Group>(null)
+  
+  useFrame((state) => {
+    if (meshRef.current) {
+      // Always face the camera (billboard effect)
+      meshRef.current.lookAt(state.camera.position)
+      
+      // Position it in front of the camera at a reasonable distance
+      const cameraDirection = new THREE.Vector3()
+      state.camera.getWorldDirection(cameraDirection)
+      
+      // Position 8 units in front of camera
+      const notificationPosition = state.camera.position.clone()
+      notificationPosition.add(cameraDirection.multiplyScalar(8))
+      
+      meshRef.current.position.copy(notificationPosition)
+    }
+  })
+
+  return (
+    <group ref={meshRef}>
+      {/* Bright red background - impossible to miss */}
+      <mesh>
+        <planeGeometry args={[6, 1.5]} />
+        <meshBasicMaterial 
+          color="#ff0000"
+          transparent 
+          opacity={0.9}
+        />
+      </mesh>
+      
+      {/* White border for contrast */}
+      <mesh position={[0, 0, 0.001]}>
+        <planeGeometry args={[6.2, 1.7]} />
+        <meshBasicMaterial 
+          color="#ffffff"
+          transparent 
+          opacity={1.0}
+          wireframe
+        />
+      </mesh>
+      
+      {/* Reasonably sized black text on red background */}
+      <Text
+        position={[0, 0.1, 0.01]}
+        fontSize={0.3}
+        color="#000000"
+        anchorX="center"
+        anchorY="middle"
+        fontWeight="bold"
+      >
+        🎲 DICE IS ALREADY ROLLING
+      </Text>
+      
+      {/* Subtitle */}
+      <Text
+        position={[0, -0.3, 0.01]}
+        fontSize={0.2}
+        color="#000000"
+        anchorX="center"
+        anchorY="middle"
+        fontWeight="bold"
+      >
+        PLEASE WAIT...
+      </Text>
+    </group>
+  )
+}
+
 // Camera controller
 function CameraController({ isSpacePressed }: { isSpacePressed: boolean }) {
   const [angle, setAngle] = useState(0)
@@ -506,12 +821,74 @@ function CameraController({ isSpacePressed }: { isSpacePressed: boolean }) {
 // Main simulation component
 export default function LudoSimulation() {
   const [isSpacePressed, setIsSpacePressed] = useState(false)
+  const [showBlockedMessage, setShowBlockedMessage] = useState(false)
+  const ludoBoardRef = useRef<{ 
+    throwDice: () => void, 
+    throwDiceWithValue: (value?: number) => void,
+    isDiceAnimating: boolean 
+  }>(null)
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Debug logging for Mac keyboard issues
+      console.log('Key pressed:', { key: event.key, code: event.code, keyCode: event.keyCode })
+      
+      // Check if dice is currently animating - if so, show blocked message and ignore key presses
+      if (ludoBoardRef.current?.isDiceAnimating) {
+        setShowBlockedMessage(true)
+        setTimeout(() => setShowBlockedMessage(false), 2000)
+        return
+      }
+
       if (event.code === 'Space') {
         event.preventDefault()
         setIsSpacePressed(true)
+      }
+      
+      // Handle Enter key for random dice throw
+      if (event.code === 'Enter' || event.code === 'NumpadEnter') {
+        event.preventDefault()
+        ludoBoardRef.current?.throwDice()
+      }
+
+      // Handle 1-6 keys for specific dice values (Mac compatible)
+      // Use multiple detection methods for better compatibility
+      const key = event.key
+      const code = event.code
+      const keyCode = event.keyCode
+      
+      // Method 1: event.key (most reliable for Mac)
+      // Method 2: event.code (backup)
+      // Method 3: event.keyCode (legacy support)
+      if (key === '1' || code === 'Digit1' || code === 'Numpad1' || keyCode === 49) {
+        event.preventDefault()
+        console.log('Throwing dice with value 1')
+        ludoBoardRef.current?.throwDiceWithValue(1)
+      }
+      else if (key === '2' || code === 'Digit2' || code === 'Numpad2' || keyCode === 50) {
+        event.preventDefault()
+        console.log('Throwing dice with value 2')
+        ludoBoardRef.current?.throwDiceWithValue(2)
+      }
+      else if (key === '3' || code === 'Digit3' || code === 'Numpad3' || keyCode === 51) {
+        event.preventDefault()
+        console.log('Throwing dice with value 3')
+        ludoBoardRef.current?.throwDiceWithValue(3)
+      }
+      else if (key === '4' || code === 'Digit4' || code === 'Numpad4' || keyCode === 52) {
+        event.preventDefault()
+        console.log('Throwing dice with value 4')
+        ludoBoardRef.current?.throwDiceWithValue(4)
+      }
+      else if (key === '5' || code === 'Digit5' || code === 'Numpad5' || keyCode === 53) {
+        event.preventDefault()
+        console.log('Throwing dice with value 5')
+        ludoBoardRef.current?.throwDiceWithValue(5)
+      }
+      else if (key === '6' || code === 'Digit6' || code === 'Numpad6' || keyCode === 54) {
+        event.preventDefault()
+        console.log('Throwing dice with value 6')
+        ludoBoardRef.current?.throwDiceWithValue(6)
       }
     }
 
@@ -532,15 +909,18 @@ export default function LudoSimulation() {
   }, [])
 
   return (
-    <div className="w-full h-full overflow-hidden bg-gradient-to-b from-blue-800 to-purple-800">
-      <Canvas camera={{ position: [15, 10, 15], fov: 75 }}>
+    <div className="w-full h-full overflow-hidden" style={{ backgroundColor: "#333333" }}>
+      <Canvas camera={{ position: [0, 12, 12], fov: 60 }}>
         {/* Enhanced lighting optimized for container */}
         <ambientLight intensity={0.7} />
         <directionalLight position={[10, 10, 5]} intensity={1.0} />
         <pointLight position={[-10, 10, -10]} intensity={0.4} />
 
+        {/* 3D Grid Background */}
+        <gridHelper args={[100, 100, '#ffffff', '#4D4D4D']} />
+        
         {/* Ludo Board */}
-        <LudoBoard />
+        <LudoBoard ref={ludoBoardRef} />
 
         {/* Controls */}
         <OrbitControls 
@@ -553,6 +933,9 @@ export default function LudoSimulation() {
 
         {/* Camera controller */}
         <CameraController isSpacePressed={isSpacePressed} />
+
+        {/* Camera-facing blocked message notification */}
+        {showBlockedMessage && <BlockedMessageNotification />}
       </Canvas>
     </div>
   )
