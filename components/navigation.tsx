@@ -24,6 +24,13 @@ export default function Navigation() {
             </Link>
           </Button>
         )}
+        {pathname !== '/play' && (
+          <Button variant="outline" asChild>
+            <Link href="/play">
+              🎮 Play Game
+            </Link>
+          </Button>
+        )}
       </div>
     </nav>
   )

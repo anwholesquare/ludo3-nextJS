@@ -29,15 +29,21 @@ export default function Home() {
             
             <div className="flex gap-3 sm:gap-4 justify-center lg:justify-start flex-col sm:flex-row">
               <Button size="lg" className="text-base sm:text-lg px-6 sm:px-8 py-3 w-full sm:w-auto" asChild>
-                <a href="/simulate" className="flex items-center justify-center gap-2">
+                <a href="/play" className="flex items-center justify-center gap-2">
                   <Gamepad2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                  Try Interactive Demo
+                  Play Ludo Game
+                </a>
+              </Button>
+              <Button size="lg" variant="outline" className="text-base sm:text-lg px-6 sm:px-8 py-3 w-full sm:w-auto" asChild>
+                <a href="/simulate" className="flex items-center justify-center gap-2">
+                  <Code2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                  View Demo
                 </a>
               </Button>
               <Button size="lg" variant="outline" className="hidden lg:flex text-base sm:text-lg px-6 sm:px-8 py-3 w-full sm:w-auto" asChild>
                 <a href="#docs" className="flex items-center justify-center gap-2">
                   <Code2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                  View Documentation
+                  Documentation
                 </a>
               </Button>
             </div>
@@ -315,9 +321,9 @@ const homes = [
           
           <div className="flex gap-3 sm:gap-4 justify-center flex-col sm:flex-row px-4">
             <Button size="lg" className="text-base sm:text-lg px-6 sm:px-8 py-3 w-full sm:w-auto" asChild>
-              <a href="#simulation" className="flex items-center justify-center gap-2">
+              <a href="/play" className="flex items-center justify-center gap-2">
                 <Gamepad2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                Play Interactive Demo
+                Start Playing Now
               </a>
             </Button>
             <Button size="lg" variant="outline" className="text-base sm:text-lg px-6 sm:px-8 py-3 w-full sm:w-auto" asChild>

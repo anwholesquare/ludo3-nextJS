@@ -10,7 +10,8 @@ import * as THREE from 'three'
 const LudoBoard = forwardRef<{ 
   throwDice: () => void, 
   throwDiceWithValue: (value?: number) => void,
-  isDiceAnimating: boolean 
+  isDiceAnimating: boolean,
+  movePiece: (color: 'yellow' | 'blue' | 'green' | 'red') => void
 }, {}>(function LudoBoard(props, ref) {
   const meshRef = useRef<THREE.Mesh>(null)
   const [currentTheme, setCurrentTheme] = useState(0)
@@ -23,6 +24,78 @@ const LudoBoard = forwardRef<{
   const [diceAngularVelocity, setDiceAngularVelocity] = useState<[number, number, number]>([0, 0, 0])
   const [targetValue, setTargetValue] = useState(1)
   const [isDiceActive, setIsDiceActive] = useState(false) // True from throw until vanish
+  
+  // Game piece positions and movement state
+  const [piecePositions, setPiecePositions] = useState({
+    yellow: { pathIndex: 0, isMoving: false },
+    blue: { pathIndex: 0, isMoving: false },
+    green: { pathIndex: 0, isMoving: false },
+    red: { pathIndex: 0, isMoving: false }
+  })
+  
+  // Path data from path.json
+  const pathData = useMemo(() => ({
+    yellow_path: [
+      [-6,-1], [-5,-1], [-4,-1], [-3,-1], [-2,-1],
+      [-1,-2], [-1,-3], [-1,-4], [-1,-5], [-1,-6], [-1,-7],
+      [0,-7], [1,-7], 
+      [1,-6], [1,-5], [1,-4], [1,-3], [1,-2],
+      [2,-1], [3,-1], [4,-1], [5,-1], [6,-1], [7,-1],
+      [7,0], [7,1],
+      [6,1], [5,1], [4,1], [3,1], [2,1],
+      [1,2], [1,3], [1,4], [1,5], [1,6], [1,7],
+      [0,7], [-1,7], 
+      [-1,6], [-1,5], [-1,4], [-1,3], [-1,2],
+      [-2,1], [-3,1], [-4,1], [-5,1], [-6,1], [-7,1],
+      [-7,0],
+      [-6,0], [-5,0], [-4,0], [-3,0], [-2,0], [-1,0]
+    ],
+    blue_path: [
+      [6,1], [5,1], [4,1], [3,1], [2,1],
+      [1,2], [1,3], [1,4], [1,5], [1,6], [1,7],
+      [0,7], [-1,7], 
+      [-1,6], [-1,5], [-1,4], [-1,3], [-1,2],
+      [-2,1], [-3,1], [-4,1], [-5,1], [-6,1], [-7,1],
+      [-7,0], [-7,-1],
+      [-6,-1], [-5,-1], [-4,-1], [-3,-1], [-2,-1],
+      [-1,-2], [-1,-3], [-1,-4], [-1,-5], [-1,-6], [-1,-7],
+      [0,-7], [1,-7], 
+      [1,-6], [1,-5], [1,-4], [1,-3], [1,-2],
+      [2,-1], [3,-1], [4,-1], [5,-1], [6,-1], [7,-1],
+      [7,0],
+      [6,0], [5,0], [4,0], [3,0], [2,0], [1,0]
+    ],
+    red_path: [
+      [1,-6], [1,-5], [1,-4], [1,-3], [1,-2],
+      [2,-1], [3,-1], [4,-1], [5,-1], [6,-1], [7,-1],
+      [7,0], [7,1],
+      [6,1], [5,1], [4,1], [3,1], [2,1],
+      [1,2], [1,3], [1,4], [1,5], [1,6], [1,7],
+      [0,7], [-1,7], 
+      [-1,6], [-1,5], [-1,4], [-1,3], [-1,2],
+      [-2,1], [-3,1], [-4,1], [-5,1], [-6,1], [-7,1],
+      [-7,0], [-7,-1],
+      [-6,-1], [-5,-1], [-4,-1], [-3,-1], [-2,-1],
+      [-1,-2], [-1,-3], [-1,-4], [-1,-5], [-1,-6], [-1,-7],
+      [0,-7], 
+      [0,-6], [0,-5], [0,-4], [0,-3], [0,-2], [0,-1]
+    ],
+    green_path: [
+      [-1,6], [-1,5], [-1,4], [-1,3], [-1,2],
+      [-2,1], [-3,1], [-4,1], [-5,1], [-6,1], [-7,1],
+      [-7,0], [-7,-1],
+      [-6,-1], [-5,-1], [-4,-1], [-3,-1], [-2,-1],
+      [-1,-2], [-1,-3], [-1,-4], [-1,-5], [-1,-6], [-1,-7],
+      [0,-7], [1,-7],
+      [1,-6], [1,-5], [1,-4], [1,-3], [1,-2],
+      [2,-1], [3,-1], [4,-1], [5,-1], [6,-1], [7,-1],
+      [7,0], [7,1],
+      [6,1], [5,1], [4,1], [3,1], [2,1],
+      [1,2], [1,3], [1,4], [1,5], [1,6], [1,7],
+      [0,7],
+      [0,6], [0,5], [0,4], [0,3], [0,2], [0,1]
+    ]
+  }), [])
 
   // Color themes for the board
   const colorThemes = [
@@ -42,10 +115,10 @@ const LudoBoard = forwardRef<{
       boardBase: '#F0F000',
       trackTiles: '#FFFFFF',
       players: {
-        yellow: '#FFB347',
-        green: '#90EE90', 
-        blue: '#87CEEB',
-        red: '#FA8072'
+        yellow: '#FFD700',
+        green: '#00CED1', 
+        blue: '#1E90FF',
+        red: '#FF6347'
       }
     },
     {
@@ -80,6 +153,40 @@ const LudoBoard = forwardRef<{
     }
   }
 
+  // Move piece along path
+  const movePiece = (playerColor: 'yellow' | 'blue' | 'green' | 'red') => {
+    const currentPiece = piecePositions[playerColor]
+    
+    // Don't move if already moving or at end of path
+    if (currentPiece.isMoving) return
+    
+    const pathKey = `${playerColor}_path` as keyof typeof pathData
+    const path = pathData[pathKey]
+    
+    if (currentPiece.pathIndex >= path.length - 1) {
+      console.log(`${playerColor} piece has reached the end!`)
+      return
+    }
+    
+    // Mark as moving
+    setPiecePositions(prev => ({
+      ...prev,
+      [playerColor]: { ...prev[playerColor], isMoving: true }
+    }))
+    
+    // Animate to next position after a brief delay
+    setTimeout(() => {
+      setPiecePositions(prev => ({
+        ...prev,
+        [playerColor]: { 
+          pathIndex: prev[playerColor].pathIndex + 1, 
+          isMoving: false 
+        }
+      }))
+      
+      console.log(`${playerColor} piece moved to position ${currentPiece.pathIndex + 1}`)
+    }, 500) // 0.5 second movement animation
+  }
 
   // Realistic dice throwing with physics animation
   const throwDiceWithValue = (specificValue?: number) => {
@@ -150,11 +257,12 @@ const LudoBoard = forwardRef<{
   // Legacy function for random throws
   const throwDice = () => throwDiceWithValue()
 
-  // Expose dice functions to parent
+  // Expose dice functions and piece movement to parent
   useImperativeHandle(ref, () => ({
     throwDice,
     throwDiceWithValue,
-    isDiceAnimating: isDiceActive // Use isDiceActive instead of isDiceAnimating
+    isDiceAnimating: isDiceActive, // Use isDiceActive instead of isDiceAnimating
+    movePiece
   }))
 
   return (
@@ -166,7 +274,7 @@ const LudoBoard = forwardRef<{
       </mesh>
 
       {/* Board components */}
-      <BoardComponents colors={currentColors} />
+      <BoardComponents colors={currentColors} piecePositions={piecePositions} pathData={pathData} />
       
       {/* 3D Dice with Physics - only show when visible */}
       {isDiceVisible && (
@@ -182,7 +290,11 @@ const LudoBoard = forwardRef<{
 })
 
 // All board components
-function BoardComponents({ colors }: { colors: any }) {
+function BoardComponents({ colors, piecePositions, pathData }: { 
+  colors: any, 
+  piecePositions: any, 
+  pathData: any 
+}) {
   return (
     <group>
       {/* Home areas */}
@@ -195,7 +307,7 @@ function BoardComponents({ colors }: { colors: any }) {
       <CenterArea colors={colors} />
       
       {/* Game pieces */}
-      <GamePieces colors={colors} />
+      <GamePieces colors={colors} piecePositions={piecePositions} pathData={pathData} />
       
     </group>
   )
@@ -640,32 +752,64 @@ function DiceComponent({ position, rotation, value, isAnimating }: {
 // Preload the dice model
 useGLTF.preload('/dice_highres_red.glb')
 
-// Game pieces positioned in homes and on track
-function GamePieces({ colors }: { colors: any }) {
+// Game pieces positioned dynamically based on path progress
+function GamePieces({ colors, piecePositions, pathData }: { 
+  colors: any, 
+  piecePositions: any, 
+  pathData: any 
+}) {
+  // Calculate piece positions based on path progress
+  const getPiecePosition = (playerColor: 'yellow' | 'blue' | 'green' | 'red') => {
+    const pathKey = `${playerColor}_path` as keyof typeof pathData
+    const path = pathData[pathKey]
+    const pathIndex = piecePositions[playerColor].pathIndex
+    
+    if (pathIndex < path.length) {
+      const [x, z] = path[pathIndex]
+      return { x, z }
+    }
+    
+    // If at end of path, stay at last position
+    const [x, z] = path[path.length - 1]
+    return { x, z }
+  }
+
   const pieces = [
-    // Yellow pieces - 2 at home, 2 on track
-    { color: colors.players.yellow, x: -5.6, z: -5.6 }, // Home slot 1
-    { color: colors.players.yellow, x: -3.4, z: -5.6 }, // Home slot 2
-    { color: colors.players.yellow, x: -7, z: -1 },     // On main track
-    { color: colors.players.yellow, x: -4, z: 0 },      // On home run path
+    // Moving pieces - one per player following their path
+    { 
+      color: colors.players.yellow, 
+      ...getPiecePosition('yellow'),
+      isMoving: piecePositions.yellow.isMoving,
+      player: 'yellow'
+    },
+    { 
+      color: colors.players.blue, 
+      ...getPiecePosition('blue'),
+      isMoving: piecePositions.blue.isMoving,
+      player: 'blue'
+    },
+    { 
+      color: colors.players.green, 
+      ...getPiecePosition('green'),
+      isMoving: piecePositions.green.isMoving,
+      player: 'green'
+    },
+    { 
+      color: colors.players.red, 
+      ...getPiecePosition('red'),
+      isMoving: piecePositions.red.isMoving,
+      player: 'red'
+    },
     
-    // Green pieces - 1 at home, 3 on track
-    { color: colors.players.green, x: -5.6, z: 3.4 },   // Home slot
-    { color: colors.players.green, x: -2, z: 1 },       // On main track
-    { color: colors.players.green, x: 0, z: 4 },        // On home run path
-    { color: colors.players.green, x: 3, z: 1 },        // On main track
-    
-    // Blue pieces - 1 at home, 3 on track
-    { color: colors.players.blue, x: 3.4, z: 5.6 },     // Home slot
-    { color: colors.players.blue, x: 1, z: 3 },         // On main track
-    { color: colors.players.blue, x: 5, z: 0 },         // On home run path
-    { color: colors.players.blue, x: -3, z: -1 },       // On main track
-    
-    // Red pieces - 1 at home, 3 on track
-    { color: colors.players.red, x: 5.6, z: -3.4 },     // Home slot
-    { color: colors.players.red, x: 0, z: -4 },         // On home run path
-    { color: colors.players.red, x: 6, z: -1 },         // On main track
-    { color: colors.players.red, x: -1, z: -7 }         // On main track
+    // Static pieces in home areas
+    { color: colors.players.yellow, x: -5.6, z: -5.6, isMoving: false }, // Yellow home
+    { color: colors.players.yellow, x: -3.4, z: -5.6, isMoving: false }, // Yellow home
+    { color: colors.players.green, x: -5.6, z: 3.4, isMoving: false },   // Green home
+    { color: colors.players.green, x: -3.4, z: 3.4, isMoving: false },   // Green home
+    { color: colors.players.blue, x: 3.4, z: 5.6, isMoving: false },     // Blue home
+    { color: colors.players.blue, x: 5.6, z: 5.6, isMoving: false },     // Blue home
+    { color: colors.players.red, x: 5.6, z: -3.4, isMoving: false },     // Red home
+    { color: colors.players.red, x: 3.4, z: -3.4, isMoving: false }      // Red home
   ]
 
   return (
@@ -800,17 +944,61 @@ function BlockedMessageNotification() {
   )
 }
 
-// Camera controller
-function CameraController({ isSpacePressed }: { isSpacePressed: boolean }) {
+// Camera controller with reset and preset views
+function CameraController({ 
+  isSpacePressed, 
+  resetCamera, 
+  cameraView 
+}: { 
+  isSpacePressed: boolean,
+  resetCamera: boolean,
+  cameraView: string | null
+}) {
   const [angle, setAngle] = useState(0)
   
   useFrame((state) => {
+    // Handle camera reset
+    if (resetCamera) {
+      state.camera.position.set(0, 12, 12)
+      state.camera.lookAt(0, 0, 0)
+      return
+    }
+
+    // Handle preset camera views
+    if (cameraView) {
+      const distance = 20
+      switch (cameraView) {
+        case 'top':
+          state.camera.position.set(0, 25, 0)
+          state.camera.lookAt(0, 0, 0)
+          break
+        case 'front':
+          state.camera.position.set(0, 12, distance)
+          state.camera.lookAt(0, 0, 0)
+          break
+        case 'left':
+          state.camera.position.set(-distance, 12, 0)
+          state.camera.lookAt(0, 0, 0)
+          break
+        case 'right':
+          state.camera.position.set(distance, 12, 0)
+          state.camera.lookAt(0, 0, 0)
+          break
+        case 'perspective':
+          state.camera.position.set(0, 12, 12)
+          state.camera.lookAt(0, 0, 0)
+          break
+      }
+      return
+    }
+
+    // Handle space-pressed auto-rotate
     if (isSpacePressed) {
       setAngle((prev) => prev + 0.01)
       const radius = 20
       state.camera.position.x = Math.cos(angle) * radius
       state.camera.position.z = Math.sin(angle) * radius
-      state.camera.position.y = 12
+      state.camera.position.y = 15
       state.camera.lookAt(0, 0, 0)
     }
   })
@@ -822,10 +1010,13 @@ function CameraController({ isSpacePressed }: { isSpacePressed: boolean }) {
 export default function LudoSimulation() {
   const [isSpacePressed, setIsSpacePressed] = useState(false)
   const [showBlockedMessage, setShowBlockedMessage] = useState(false)
+  const [resetCamera, setResetCamera] = useState(false)
+  const [cameraView, setCameraView] = useState<string | null>(null)
   const ludoBoardRef = useRef<{ 
     throwDice: () => void, 
     throwDiceWithValue: (value?: number) => void,
-    isDiceAnimating: boolean 
+    isDiceAnimating: boolean,
+    movePiece: (color: 'yellow' | 'blue' | 'green' | 'red') => void
   }>(null)
 
   useEffect(() => {
@@ -842,7 +1033,16 @@ export default function LudoSimulation() {
 
       if (event.code === 'Space') {
         event.preventDefault()
-        setIsSpacePressed(true)
+        setIsSpacePressed(prev => !prev) // Toggle instead of just setting to true
+      }
+
+      // Handle R key - camera reset takes priority with Ctrl/Cmd modifier
+      if (event.code === 'KeyR' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault()
+        console.log('Resetting camera to initial position')
+        setResetCamera(true)
+        setCameraView(null)
+        setTimeout(() => setResetCamera(false), 100) // Reset flag after brief moment
       }
       
       // Handle Enter key for random dice throw
@@ -890,13 +1090,33 @@ export default function LudoSimulation() {
         console.log('Throwing dice with value 6')
         ludoBoardRef.current?.throwDiceWithValue(6)
       }
+
+      // Handle Y, B, G, R keys for piece movement
+      if (key === 'y' || key === 'Y' || code === 'KeyY') {
+        event.preventDefault()
+        console.log('Moving yellow piece')
+        ludoBoardRef.current?.movePiece('yellow')
+      }
+      else if (key === 'b' || key === 'B' || code === 'KeyB') {
+        event.preventDefault()
+        console.log('Moving blue piece')
+        ludoBoardRef.current?.movePiece('blue')
+      }
+      else if (key === 'g' || key === 'G' || code === 'KeyG') {
+        event.preventDefault()
+        console.log('Moving green piece')
+        ludoBoardRef.current?.movePiece('green')
+      }
+      else if ((key === 'r' || key === 'R') && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault()
+        console.log('Moving red piece')
+        ludoBoardRef.current?.movePiece('red')
+      }
     }
 
     const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.code === 'Space') {
-        event.preventDefault()
-        setIsSpacePressed(false)
-      }
+      // Space key now works as toggle, no need for keyup handler
+      // Keeping this function for potential future use
     }
 
     window.addEventListener('keydown', handleKeyDown)
@@ -908,8 +1128,16 @@ export default function LudoSimulation() {
     }
   }, [])
 
+  // Handle camera view changes
+  const handleCameraView = (view: string) => {
+    console.log(`Switching to ${view} view`)
+    setCameraView(view)
+    setResetCamera(false)
+    setTimeout(() => setCameraView(null), 100) // Reset flag after brief moment
+  }
+
   return (
-    <div className="w-full h-full overflow-hidden" style={{ backgroundColor: "#333333" }}>
+    <div className="w-full h-full overflow-hidden relative" style={{ backgroundColor: "#333333" }}>
       <Canvas camera={{ position: [0, 12, 12], fov: 60 }}>
         {/* Enhanced lighting optimized for container */}
         <ambientLight intensity={0.7} />
@@ -932,11 +1160,80 @@ export default function LudoSimulation() {
         />
 
         {/* Camera controller */}
-        <CameraController isSpacePressed={isSpacePressed} />
+        <CameraController 
+          isSpacePressed={isSpacePressed}
+          resetCamera={resetCamera}
+          cameraView={cameraView}
+        />
 
         {/* Camera-facing blocked message notification */}
         {showBlockedMessage && <BlockedMessageNotification />}
       </Canvas>
+      
+      {/* Camera View Controls - Bottom Right */}
+      <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-2">
+        <div className="bg-black/40 backdrop-blur-sm rounded-lg p-3 text-white">
+          <div className="text-xs font-semibold mb-2 text-center">Camera Views</div>
+          <div className="grid grid-cols-2 gap-1 text-xs">
+            <button
+              onClick={() => handleCameraView('top')}
+              className="px-2 py-1 bg-white/20 hover:bg-white/30 rounded transition-colors"
+              title="Top View"
+            >
+              Top
+            </button>
+            <button
+              onClick={() => handleCameraView('front')}
+              className="px-2 py-1 bg-white/20 hover:bg-white/30 rounded transition-colors"
+              title="Front View"
+            >
+              Front
+            </button>
+            <button
+              onClick={() => handleCameraView('left')}
+              className="px-2 py-1 bg-white/20 hover:bg-white/30 rounded transition-colors"
+              title="Left View"
+            >
+              Left
+            </button>
+            <button
+              onClick={() => handleCameraView('right')}
+              className="px-2 py-1 bg-white/20 hover:bg-white/30 rounded transition-colors"
+              title="Right View"
+            >
+              Right
+            </button>
+          </div>
+          
+          
+          {/* Auto-rotate Toggle */}
+          <button
+            onClick={() => setIsSpacePressed(!isSpacePressed)}
+            className={`w-full mt-1 px-2 py-1 rounded transition-colors text-xs font-semibold ${
+              isSpacePressed 
+                ? 'bg-green-500/80 hover:bg-green-500 text-white' 
+                : 'bg-white/20 hover:bg-white/30 text-white'
+            }`}
+            title="Toggle Auto-rotate (Space key)"
+          >
+            {isSpacePressed ? '🔄 Auto-rotate ON' : '⏸️ Auto-rotate OFF'}
+          </button>
+        </div>
+        
+        {/* Reset Camera Button */}
+        <button
+          onClick={() => {
+            setResetCamera(true)
+            setCameraView(null)
+            setIsSpacePressed(false) // Also stop auto-rotate on reset
+            setTimeout(() => setResetCamera(false), 100)
+          }}
+          className="bg-red-500/80 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-colors backdrop-blur-sm"
+          title="Reset Camera (R key)"
+        >
+          Reset (R)
+        </button>
+      </div>
     </div>
   )
 }
