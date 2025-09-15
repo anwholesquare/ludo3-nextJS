@@ -321,7 +321,7 @@ const homes = [
               </a>
             </Button>
             <Button size="lg" variant="outline" className="text-base sm:text-lg px-6 sm:px-8 py-3 w-full sm:w-auto" asChild>
-              <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
+              <a href="https://github.com/anwholesquare/ludo3-nextJS" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
                 <Github className="h-4 w-4 sm:h-5 sm:w-5" />
                 View on GitHub
               </a>
