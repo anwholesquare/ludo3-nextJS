@@ -6,8 +6,10 @@ import Navigation from '@/components/navigation'
 export default function SimulatePage() {
   return (
     <div className="relative w-screen h-screen overflow-hidden">
-      {/* Full screen Ludo simulation */}
-      <LudoSimulation />
+      {/* Full screen Ludo simulation container */}
+      <div className="fixed inset-0 w-screen h-screen">
+        <LudoSimulation />
+      </div>
       
       {/* Overlay UI elements */}
       <div className="absolute top-4 left-4 z-10">
