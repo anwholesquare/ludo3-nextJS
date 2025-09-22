@@ -375,7 +375,7 @@ const homes = [
             <CardHeader>
               <CardTitle className="text-xl font-space-grotesk">Home Areas Coordinates</CardTitle>
               <CardDescription>
-                Each player's home area is positioned in a corner quadrant, 4.5 units from center
+                Each player&lsquo;s home area is positioned in a corner quadrant, 4.5 units from center
               </CardDescription>
             </CardHeader>
             <CardContent>

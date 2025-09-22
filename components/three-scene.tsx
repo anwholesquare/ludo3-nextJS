@@ -2,11 +2,12 @@
 
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Box, Text } from '@react-three/drei'
+import * as THREE from 'three'
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 
 function RotatingBox() {
-  const meshRef = useRef<any>()
+  const meshRef = useRef<THREE.Mesh>(null)
   
   useFrame((state, delta) => {
     if (meshRef.current) {
@@ -16,7 +17,7 @@ function RotatingBox() {
   })
 
   return (
-    <Box ref={meshRef} args={[1, 1, 1]} position={[0, 0, 0]}>
+    <Box ref={meshRef as unknown as React.MutableRefObject<THREE.Mesh>} args={[1, 1, 1]} position={[0, 0, 0]}>
       <meshStandardMaterial color="hotpink" />
     </Box>
   )

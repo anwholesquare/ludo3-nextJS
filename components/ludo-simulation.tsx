@@ -7,12 +7,22 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
 // Simple working Ludo board with color themes
+type PathData = {
+  yellow_path: number[][],
+  blue_path: number[][],
+  green_path: number[][],
+  red_path: number[][]
+}
+
+type PiecePositions = Record<'yellow' | 'blue' | 'green' | 'red', { pathIndex: number, isMoving: boolean }>
+
+ 
 const LudoBoard = forwardRef<{ 
   throwDice: () => void, 
   throwDiceWithValue: (value?: number) => void,
   isDiceAnimating: boolean,
   movePiece: (color: 'yellow' | 'blue' | 'green' | 'red') => void
-}, {}>(function LudoBoard(props, ref) {
+}, object>(function LudoBoard(props, ref) {
   const meshRef = useRef<THREE.Mesh>(null)
   const [currentTheme, setCurrentTheme] = useState(0)
   const [diceValue, setDiceValue] = useState(1)
@@ -20,13 +30,11 @@ const LudoBoard = forwardRef<{
   const [isDiceVisible, setIsDiceVisible] = useState(false) // Start hidden, show during animation
   const [dicePosition, setDicePosition] = useState<[number, number, number]>([0, 1.2, 0]) // Center position
   const [diceRotation, setDiceRotation] = useState<[number, number, number]>([0, 0, 0])
-  const [diceVelocity, setDiceVelocity] = useState<[number, number, number]>([0, 0, 0])
-  const [diceAngularVelocity, setDiceAngularVelocity] = useState<[number, number, number]>([0, 0, 0])
-  const [targetValue, setTargetValue] = useState(1)
+  // Removed unused dice velocity/angular and target value state
   const [isDiceActive, setIsDiceActive] = useState(false) // True from throw until vanish
   
   // Game piece positions and movement state
-  const [piecePositions, setPiecePositions] = useState({
+  const [piecePositions, setPiecePositions] = useState<PiecePositions>({
     yellow: { pathIndex: 0, isMoving: false },
     blue: { pathIndex: 0, isMoving: false },
     green: { pathIndex: 0, isMoving: false },
@@ -34,7 +42,7 @@ const LudoBoard = forwardRef<{
   })
   
   // Path data from path.json
-  const pathData = useMemo(() => ({
+  const pathData = useMemo<PathData>(() => ({
     yellow_path: [
       [-6,-1], [-5,-1], [-4,-1], [-3,-1], [-2,-1],
       [-1,-2], [-1,-3], [-1,-4], [-1,-5], [-1,-6], [-1,-7],
@@ -98,7 +106,12 @@ const LudoBoard = forwardRef<{
   }), [])
 
   // Color themes for the board
-  const colorThemes = [
+  const colorThemes: Array<{
+    name: string,
+    boardBase: string,
+    trackTiles: string,
+    players: Record<'yellow' | 'green' | 'blue' | 'red', string>
+  }> = [
     {
       name: 'Dark',
       boardBase: '#2F2F2F',
@@ -201,7 +214,6 @@ const LudoBoard = forwardRef<{
     
     // Use specific value or generate random
     const newValue = specificValue || Math.floor(Math.random() * 6) + 1
-    setTargetValue(newValue)
     setDiceValue(newValue)
     
     // Start from above center, thrown with realistic physics
@@ -214,16 +226,7 @@ const LudoBoard = forwardRef<{
       8,       // Start 8 units high
       centerZ  // No depth offset - start directly above center
     ]
-    const initialVelocity: [number, number, number] = [
-      0,  // No horizontal velocity - fall straight down
-      1,  // Small upward velocity for natural arc
-      0   // No depth velocity - fall straight down
-    ]
-    const initialAngularVelocity: [number, number, number] = [
-      (Math.random() - 0.5) * 12, // Reduced initial tumbling (was 20)
-      (Math.random() - 0.5) * 12,
-      (Math.random() - 0.5) * 12
-    ]
+    // Physics are handled inside DiceComponent
     const initialRotation: [number, number, number] = [
       Math.random() * Math.PI * 2,
       Math.random() * Math.PI * 2,
@@ -233,8 +236,6 @@ const LudoBoard = forwardRef<{
     // Set initial physics state
     setDicePosition(initialPosition)
     setDiceRotation(initialRotation)
-    setDiceVelocity(initialVelocity)
-    setDiceAngularVelocity(initialAngularVelocity)
     
     // Simple: physics stops, show exact value immediately
     setTimeout(() => {
@@ -291,9 +292,9 @@ const LudoBoard = forwardRef<{
 
 // All board components
 function BoardComponents({ colors, piecePositions, pathData }: { 
-  colors: any, 
-  piecePositions: any, 
-  pathData: any 
+  colors: { name: string, boardBase: string, trackTiles: string, players: Record<'yellow' | 'green' | 'blue' | 'red', string> }, 
+  piecePositions: PiecePositions, 
+  pathData: PathData
 }) {
   return (
     <group>
@@ -314,7 +315,7 @@ function BoardComponents({ colors, piecePositions, pathData }: {
 }
 
 // Modern minimalist home areas
-function HomeAreas({ colors }: { colors: any }) {
+function HomeAreas({ colors }: { colors: { players: Record<'yellow' | 'green' | 'blue' | 'red', string> } }) {
   const homes = [
     { color: colors.players.yellow, x: -4.5, z: -4.5, name: 'PLAYER Y' }, // Yellow
     { color: colors.players.green, x: -4.5, z: 4.5, name: 'PLAYER G' },   // Green
@@ -396,7 +397,7 @@ function HomeAreas({ colors }: { colors: any }) {
 }
 
 // Cross-shaped playing track with safe zones
-function PlayingTrack({ colors }: { colors: any }) {
+function PlayingTrack({ colors }: { colors: { trackTiles: string, players: Record<'yellow' | 'green' | 'blue' | 'red', string> } }) {
   const squares = []
   
   // Safe zone positions with dynamic colors
@@ -422,10 +423,7 @@ function PlayingTrack({ colors }: { colors: any }) {
     return safeZone ? safeZone.color : colors.trackTiles
   }
   
-  // Check if position is a safe zone
-  const isSafeZone = (x: number, z: number) => {
-    return safeZones.some(safe => safe.x === x && safe.z === z)
-  }
+  // unused helper removed
   
   // Horizontal track
   for (let x = -7; x <= 7; x++) {
@@ -509,7 +507,7 @@ function SafeZoneStars({ safeZones }: { safeZones: Array<{ x: number, z: number,
 
 
 // Center finish area with 4 colored triangles
-function CenterArea({ colors }: { colors: any }) {
+function CenterArea({ colors }: { colors: { players: Record<'yellow' | 'green' | 'blue' | 'red', string> } }) {
   // Create triangle geometries using BufferGeometry
   const triangleGeometries = useMemo(() => {
     // Yellow triangle (top-right quadrant)
@@ -754,9 +752,9 @@ useGLTF.preload('/dice_highres_red.glb')
 
 // Game pieces positioned dynamically based on path progress
 function GamePieces({ colors, piecePositions, pathData }: { 
-  colors: any, 
-  piecePositions: any, 
-  pathData: any 
+  colors: { players: Record<'yellow' | 'green' | 'blue' | 'red', string> }, 
+  piecePositions: PiecePositions, 
+  pathData: PathData 
 }) {
   // Calculate piece positions based on path progress
   const getPiecePosition = (playerColor: 'yellow' | 'blue' | 'green' | 'red') => {

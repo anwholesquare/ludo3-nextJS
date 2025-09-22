@@ -35,8 +35,16 @@ interface GameState {
   autoPlayEnabled: boolean
 }
 
+// Color theme typing
+interface ColorTheme {
+  name: string
+  boardBase: string
+  trackTiles: string
+  players: Record<'yellow' | 'green' | 'blue' | 'red', string>
+}
+
 // Load player paths from JSON
-let PLAYER_PATHS  = {
+const PLAYER_PATHS  = {
   yellow_path: [
       [-6,-1], [-5,1], [-4,-1], [-3, -1], [-2,-1],
       [-1,-2], [-1,-3], [-1,-4], [-1,-5], [-1,-6], [-1,-7],
@@ -127,13 +135,11 @@ const LudoBoard = forwardRef<{
   const [isDiceVisible, setIsDiceVisible] = useState(false) // Start hidden, show during animation
   const [dicePosition, setDicePosition] = useState<[number, number, number]>([0, 1.2, 0]) // Center position
   const [diceRotation, setDiceRotation] = useState<[number, number, number]>([0, 0, 0])
-  const [diceVelocity, setDiceVelocity] = useState<[number, number, number]>([0, 0, 0])
-  const [diceAngularVelocity, setDiceAngularVelocity] = useState<[number, number, number]>([0, 0, 0])
-  const [targetValue, setTargetValue] = useState(1)
+  // Removed unused velocity/target state kept internally in DiceComponent
   const [isDiceActive, setIsDiceActive] = useState(false) // True from throw until vanish
 
   // Color themes for the board
-  const colorThemes = [
+  const colorThemes: ColorTheme[] = [
     {
       name: 'Dark',
       boardBase: '#2F2F2F',
@@ -169,7 +175,7 @@ const LudoBoard = forwardRef<{
     // }
   ]
 
-  const currentColors = colorThemes[currentTheme]
+  const currentColors: ColorTheme = colorThemes[currentTheme]
 
   const handleClick = () => {
     setCurrentTheme((prev) => (prev + 1) % colorThemes.length)
@@ -202,7 +208,6 @@ const LudoBoard = forwardRef<{
     
     // Use specific value or generate random
     const newValue = specificValue || Math.floor(Math.random() * 6) + 1
-    setTargetValue(newValue)
     setDiceValue(newValue)
     
     // Start from above center, thrown with realistic physics
@@ -234,8 +239,7 @@ const LudoBoard = forwardRef<{
     // Set initial physics state
     setDicePosition(initialPosition)
     setDiceRotation(initialRotation)
-    setDiceVelocity(initialVelocity)
-    setDiceAngularVelocity(initialAngularVelocity)
+    // Dice physics are handled within DiceComponent
     
     // Simple: physics stops, show exact value immediately
     setTimeout(() => {
@@ -284,7 +288,6 @@ const LudoBoard = forwardRef<{
         <DiceComponent 
           position={dicePosition}
           rotation={diceRotation}
-          value={diceValue}
           isAnimating={isDiceAnimating}
         />
       )}
@@ -294,7 +297,7 @@ const LudoBoard = forwardRef<{
 
 // All board components
 function BoardComponents({ colors, gameState, onPieceClick }: { 
-  colors: any, 
+  colors: ColorTheme, 
   gameState: GameState, 
   onPieceClick: (piece: GamePiece) => void 
 }) {
@@ -317,7 +320,7 @@ function BoardComponents({ colors, gameState, onPieceClick }: {
 }
 
 // Modern minimalist home areas
-function HomeAreas({ colors, gameState }: { colors: any, gameState: GameState }) {
+function HomeAreas({ colors, gameState }: { colors: ColorTheme, gameState: GameState }) {
   const getNameForColor = (color: 'yellow' | 'green' | 'blue' | 'red') => {
     const player = gameState.players.find(p => p.color === color)
     if (player?.name) return player.name
@@ -411,7 +414,7 @@ function HomeAreas({ colors, gameState }: { colors: any, gameState: GameState })
 }
 
 // Cross-shaped playing track with safe zones
-function PlayingTrack({ colors }: { colors: any }) {
+function PlayingTrack({ colors }: { colors: ColorTheme }) {
   const squares = []
   
   // Safe zone positions with dynamic colors
@@ -437,10 +440,7 @@ function PlayingTrack({ colors }: { colors: any }) {
     return safeZone ? safeZone.color : colors.trackTiles
   }
   
-  // Check if position is a safe zone
-  const isSafeZone = (x: number, z: number) => {
-    return safeZones.some(safe => safe.x === x && safe.z === z)
-  }
+  // Note: safe-zone boolean helper removed as unused
   
   // Horizontal track
   for (let x = -7; x <= 7; x++) {
@@ -524,7 +524,7 @@ function SafeZoneStars({ safeZones }: { safeZones: Array<{ x: number, z: number,
 
 
 // Center finish area with 4 colored triangles
-function CenterArea({ colors }: { colors: any }) {
+function CenterArea({ colors }: { colors: ColorTheme }) {
   // Create triangle geometries using BufferGeometry
   const triangleGeometries = useMemo(() => {
     // Yellow triangle (top-right quadrant)
@@ -637,10 +637,9 @@ function CenterArea({ colors }: { colors: any }) {
 }
 
 // 3D Dice with GLB model and Three.js rotation
-function DiceComponent({ position, rotation, value, isAnimating }: { 
+function DiceComponent({ position, rotation, isAnimating }: { 
   position: [number, number, number], 
   rotation: [number, number, number], 
-  value: number,
   isAnimating: boolean
 }) {
   const diceRef = useRef<THREE.Group>(null)
@@ -816,7 +815,7 @@ function getPositionCoordinates(position: number, color: 'yellow' | 'green' | 'b
 
 // Game pieces positioned based on game state
 function GamePieces({ colors, gameState, onPieceClick }: { 
-  colors: any, 
+  colors: ColorTheme, 
   gameState: GameState,
   onPieceClick: (piece: GamePiece) => void 
 }) {
@@ -1320,7 +1319,7 @@ function GameUI({ gameState, onRollDice, onPieceClick, onAutoPlay, onToggleAutoP
               '#DC143C'
             }}
           />
-          <span className="font-semibold">{currentPlayer.name}'s Turn</span>
+          <span className="font-semibold">{currentPlayer.name}&apos;s Turn</span>
         </div>
         
         {gameState.diceValue && (
