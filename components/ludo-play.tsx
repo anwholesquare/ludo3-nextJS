@@ -301,7 +301,7 @@ function BoardComponents({ colors, gameState, onPieceClick }: {
   return (
     <group>
       {/* Home areas */}
-      <HomeAreas colors={colors} />
+      <HomeAreas colors={colors} gameState={gameState} />
       
       {/* Playing track */}
       <PlayingTrack colors={colors} />
@@ -317,12 +317,24 @@ function BoardComponents({ colors, gameState, onPieceClick }: {
 }
 
 // Modern minimalist home areas
-function HomeAreas({ colors }: { colors: any }) {
+function HomeAreas({ colors, gameState }: { colors: any, gameState: GameState }) {
+  const getNameForColor = (color: 'yellow' | 'green' | 'blue' | 'red') => {
+    const player = gameState.players.find(p => p.color === color)
+    if (player?.name) return player.name
+    // Fallbacks during setup or if not selected yet
+    switch (color) {
+      case 'yellow': return 'Yellow'
+      case 'green': return 'Green'
+      case 'blue': return 'Blue'
+      case 'red': return 'Red'
+    }
+  }
+
   const homes = [
-    { color: colors.players.yellow, x: -4.5, z: -4.5, name: 'PLAYER Y' }, // Yellow
-    { color: colors.players.green, x: -4.5, z: 4.5, name: 'PLAYER G' },   // Green
-    { color: colors.players.blue, x: 4.5, z: 4.5, name: 'PLAYER B' },     // Blue
-    { color: colors.players.red, x: 4.5, z: -4.5, name: 'PLAYER R' }      // Red
+    { color: colors.players.yellow, x: -4.5, z: -4.5, name: getNameForColor('yellow') }, // Yellow
+    { color: colors.players.green, x: -4.5, z: 4.5, name: getNameForColor('green') },   // Green
+    { color: colors.players.blue, x: 4.5, z: 4.5, name: getNameForColor('blue') },     // Blue
+    { color: colors.players.red, x: 4.5, z: -4.5, name: getNameForColor('red') }      // Red
   ]
 
   return (
@@ -812,17 +824,75 @@ function GamePieces({ colors, gameState, onPieceClick }: {
     return null // Don't show pieces during setup
   }
 
+  // Build occupancy map for tiles so we can offset pieces sharing the same tile
+  // Compute every render to account for potential nested mutations in state
+  const tileOccupancy = (() => {
+    const map = new Map<string, Array<{ piece: GamePiece, playerId: string }>>()
+    gameState.players.forEach(player => {
+      player.pieces.forEach(piece => {
+        if (piece.position >= 0 && piece.position  !== 57) {
+          const playerPath = PLAYER_PATHS[`${player.color}_path` as keyof typeof PLAYER_PATHS] as number[][]
+          const [x, z] = playerPath?.[piece.position] || [0, 0]
+          const key = `${x}:${z}`
+          if (!map.has(key)) map.set(key, [])
+          map.get(key)!.push({ piece, playerId: player.id })
+        } else if (piece.position === 57) {
+          const key = 'center'
+          if (!map.has(key)) map.set(key, [])
+          map.get(key)!.push({ piece, playerId: player.id })
+        }
+      })
+    })
+    return map
+  })()
+
+  // Compute small radial offset for pieces sharing a tile
+  const getOffsetForPiece = (piece: GamePiece, player: Player): [number, number] => {
+    // Finished center tile
+    if (piece.position === 57) {
+      const key = 'center'
+      const group = tileOccupancy.get(key) || []
+      const index = group.findIndex(g => g.piece.id === piece.id)
+      const count = group.length
+      if (count > 1) {
+        const radius = 0.35
+        const angle = (index / count) * Math.PI * 2
+        return [radius * Math.cos(angle), radius * Math.sin(angle)]
+      }
+      return [0, 0]
+    }
+
+    // In-play tiles (non-home, non-finished)
+    if (piece.position >= 0) {
+      const playerPath = PLAYER_PATHS[`${player.color}_path` as keyof typeof PLAYER_PATHS] as number[][]
+      const [x, z] = playerPath?.[piece.position] || [0, 0]
+      const key = `${x}:${z}`
+      const group = tileOccupancy.get(key) || []
+      const index = group.findIndex(g => g.piece.id === piece.id)
+      const count = group.length
+      if (count > 1) {
+        const radius = 0.3
+        const angle = (index / count) * Math.PI * 2
+        return [radius * Math.cos(angle), radius * Math.sin(angle)]
+      }
+    }
+
+    // Home positions use dedicated slots already
+    return [0, 0]
+  }
+
   return (
     <>
       {gameState.players.map(player => 
         player.pieces.map((piece, pieceIndex) => {
           const [x, y, z] = getPositionCoordinates(piece.position, player.color, pieceIndex)
+          const [dx, dz] = getOffsetForPiece(piece, player)
           const pieceColor = colors.players[player.color]
           
           return (
             <group 
               key={piece.id} 
-              position={[x, y, z]}
+              position={[x + dx, y, z + dz]}
               onClick={() => onPieceClick(piece)}
               onPointerOver={() => document.body.style.cursor = piece.canMove ? 'pointer' : 'default'}
               onPointerOut={() => document.body.style.cursor = 'default'}
@@ -1236,9 +1306,8 @@ function GameUI({ gameState, onRollDice, onPieceClick, onAutoPlay, onToggleAutoP
   const currentPlayer = gameState.players[gameState.currentPlayerIndex]
   
   return (
-    <div className="absolute top-4 left-4 z-10 bg-black/40 backdrop-blur-sm rounded-lg p-4 text-white min-w-[300px]">
-      <h3 className="text-lg font-bold mb-2">Ludo Game</h3>
-      
+    <div className="absolute bottom-4 left-4 z-10 bg-black/40 backdrop-blur-sm rounded-lg p-4 text-white min-w-[300px]">
+
       {/* Current Player */}
       <div className="mb-3">
         <div className="flex items-center gap-2 mb-2">
@@ -1333,11 +1402,6 @@ function GameUI({ gameState, onRollDice, onPieceClick, onAutoPlay, onToggleAutoP
 
       {/* Instructions */}
       <div className="mt-3 text-xs text-gray-300">
-        <div>• Roll dice to move pieces</div>
-        <div>• Click on pieces to move them</div>
-        <div>• Get 6 to move from home</div>
-        <div>• Auto-play after 30s inactivity</div>
-        <div>• Turn skips automatically if no moves</div>
         {gameState.diceValue && !currentPlayer.pieces.some(p => p.canMove) && (
           <div className="text-yellow-400 font-semibold mt-2">
             {currentPlayer.pieces.every(p => p.position === -1) && gameState.diceValue !== 6 ? (
@@ -1648,13 +1712,13 @@ export default function LudoPlay() {
       }
 
       // Handle R key for camera reset
-      if (event.code === 'KeyR') {
-        event.preventDefault()
-        console.log('Resetting camera to initial position')
-        setResetCamera(true)
-        setCameraView(null)
-        setTimeout(() => setResetCamera(false), 100) // Reset flag after brief moment
-      }
+      // if (event.code === 'KeyR') {
+      //   event.preventDefault()
+      //   console.log('Resetting camera to initial position')
+      //   setResetCamera(true)
+      //   setCameraView(null)
+      //   setTimeout(() => setResetCamera(false), 100) // Reset flag after brief moment
+      // }
       
       // Handle Enter key for random dice throw
       if (event.code === 'Enter' || event.code === 'NumpadEnter') {
@@ -1878,7 +1942,7 @@ export default function LudoPlay() {
           className="bg-red-500/80 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-colors backdrop-blur-sm"
           title="Reset Camera (R key)"
         >
-          Reset (R)
+          Reset
         </button>
       </div>
     </div>
