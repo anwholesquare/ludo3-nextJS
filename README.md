@@ -69,6 +69,22 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) to see the interactive Ludo board.
 
+## 📚 Comprehensive Documentation
+
+We've created detailed guides to help you build your own Ludo game:
+
+- **[🎮 Game Development Guide](./GAME_DEVELOPMENT_GUIDE.md)** - Complete step-by-step tutorial for building your own game
+- **[🚀 Quick Customization Guide](./QUICK_CUSTOMIZATION_GUIDE.md)** - Rapid-fire customizations with copy-paste code
+- **[📚 API Reference](./API_REFERENCE.md)** - Complete documentation of all interfaces and functions
+
+### What You'll Learn
+
+- ✅ **Complete game logic implementation** - Turn management, piece movement, win conditions
+- ✅ **3D visual customization** - Themes, animations, custom pieces
+- ✅ **Advanced features** - AI players, sound effects, multiplayer support
+- ✅ **Mobile optimization** - Touch controls, performance tuning
+- ✅ **Deployment strategies** - Vercel, Netlify, custom servers
+
 ### Build for Production
 
 ```bash
