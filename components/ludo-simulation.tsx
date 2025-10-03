@@ -314,7 +314,76 @@ function BoardComponents({ colors, piecePositions, pathData }: {
   )
 }
 
-// Modern minimalist home areas
+// Custom shader material for home areas
+const HomeShaderMaterial = ({ playerColor, time }: { playerColor: string, time: number }) => {
+  const shaderRef = useRef<THREE.ShaderMaterial>(null)
+  
+  const vertexShader = `
+    varying vec2 vUv;
+    varying vec3 vPosition;
+    
+    void main() {
+      vUv = uv;
+      vPosition = position;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `
+  
+  const fragmentShader = `
+    uniform vec3 uColor;
+    uniform float uTime;
+    uniform vec3 uCenterColor;
+    varying vec2 vUv;
+    varying vec3 vPosition;
+    
+    void main() {
+      // Create radial gradient from center
+      float distance = length(vUv - 0.5);
+      
+      // Animated wave effect
+      float wave = sin(distance * 10.0 - uTime * 2.0) * 0.1;
+      
+      // Pulsing brightness effect
+      float pulse = sin(uTime * 3.0) * 0.15 + 0.85;
+      
+      // Create gradient with wave distortion
+      float gradient = smoothstep(0.0, 0.5, distance + wave);
+      
+      // Mix colors: center white, edges player color
+      vec3 finalColor = mix(uCenterColor, uColor, gradient) * pulse;
+      
+      float shimmer = sin(vUv.x * 20.0 + uTime) * sin(vUv.y * 20.0 + uTime * 1.5) * 0.1;
+      finalColor += shimmer;
+      
+      gl_FragColor = vec4(finalColor, 0.9);
+    }
+  `
+  
+  const uniforms = useMemo(() => ({
+    uColor: { value: new THREE.Color(playerColor) },
+    uCenterColor: { value: new THREE.Color('#FAFAFA') },
+    uTime: { value: 0 }
+  }), [playerColor])
+  
+  useFrame((state) => {
+    if (shaderRef.current) {
+      shaderRef.current.uniforms.uTime.value = state.clock.elapsedTime
+    }
+  })
+  
+  return (
+    <shaderMaterial
+      ref={shaderRef}
+      vertexShader={vertexShader}
+      fragmentShader={fragmentShader}
+      uniforms={uniforms}
+      transparent
+      side={THREE.DoubleSide}
+    />
+  )
+}
+
+// Modern minimalist home areas with custom shaders
 function HomeAreas({ colors }: { colors: { players: Record<'yellow' | 'green' | 'blue' | 'red', string> } }) {
   const homes = [
     { color: colors.players.yellow, x: -4.5, z: -4.5, name: 'PLAYER Y' }, // Yellow
@@ -327,25 +396,21 @@ function HomeAreas({ colors }: { colors: { players: Record<'yellow' | 'green' | 
     <>
       {homes.map((home, index) => (
         <group key={index}>
-          {/* Modern flat base with subtle gradient */}
+          {/* Modern flat base with custom shader */}
           <mesh position={[home.x, 0.16, home.z]}>
             <boxGeometry args={[6, 0.02, 6]} />
-            <meshStandardMaterial 
-              color={home.color} 
-              roughness={0.1}
-              metalness={0.0}
-              transparent
-              opacity={0.9}
-            />
+            <HomeShaderMaterial playerColor={home.color} time={0} />
           </mesh>
           
-          {/* Clean white center area */}
+          {/* Clean white center area - simplified since shader handles the gradient */}
           <mesh position={[home.x, 0.17, home.z]}>
             <boxGeometry args={[4.5, 0.01, 4.5]} />
             <meshStandardMaterial 
-              color="#FAFAFA" 
-              roughness={0.05}
+              color="#FFFFFF" 
+              roughness={0.02}
               metalness={0.0}
+              transparent
+              opacity={0.8}
             />
           </mesh>
           
